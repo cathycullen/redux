@@ -166,18 +166,35 @@
         const name = this.input.value
         this.input.value = ''
 
-        this.props.store.dispatch(addTodoAction({
-          id: generateId(),
-          name,
-          complete: false,
-        }))
+        return API.saveTodo(name)
+          .then((todo) => {
+            this.props.store.dispatch(addTodoAction({
+              id: todo.id,
+              name,
+              complete: false,
+            }))
+          })
+          .catch(() => {
+            alert('An error ocurred.  try again');
+          })
       }
       removeItem = (todo) => {
         this.props.store.dispatch(removeTodoAction(todo.id))
+        return API.deleteTodo(todo.id)
+          .catch(() => {
+            this.props.store.dispatch(addTodoAction(todo));
+            alert('An error ocurred.  try again');
+          })
       }
       toggleItem = (id) => {
         this.props.store.dispatch(toggleTodoAction(id))
+        return API.saveTodoToggle(id)
+          .catch(() => {
+            this.props.store.dispatch(toggleTodoAction(id))
+            alert('An error ocurred.  try again');
+          })
       }
+
       render() {
         return (
           <div>
@@ -205,15 +222,28 @@
         const name = this.input.value
         this.input.value = ''
 
-        this.props.store.dispatch(addGoalAction({
-          id: generateId(),
-          name,
-        }))
+        return API.saveGoal(name)
+          .then((goal) => {
+            this.props.store.dispatch(addGoalAction({
+              id: goal.id,
+              name,
+            }))
+          })
+          .catch(() => {
+            alert('An error ocurred.  try again');
+          })
       }
 
       removeItem = (goal) => {
         this.props.store.dispatch(removeGoalAction(goal.id))
-      }
+        return API.deleteGoal(goal.id)
+          .catch(() => {
+            this.props.store.dispatch(addGoalAction(goal));
+            alert('An error ocurred.  try again');
+          })
+        }
+
+
       render() {
         return (
           <div>
