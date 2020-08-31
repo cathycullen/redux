@@ -6,21 +6,23 @@
   <script src='https://unpkg.com/react@16.13.1/umd/react.development.js'></script>
   <script src='https://unpkg.com/react-dom@16.13.1/umd/react-dom.development.js'></script>
   <script src='https://unpkg.com/babel-standalone@6.26.0/babel.min.js'></script>
+  <script src='https://ui.dev/goals-todos-api/index.js'></script>
 </head>
 <body>
-
   <div id='app'></div>
-  <script type='text/javascript'>
 
+  <script type='text/javascript'>
     function generateId () {
       return Math.random().toString(36).substring(2) + (new Date()).getTime().toString(36)
     }
 
+    // App Code
     const ADD_TODO = 'ADD_TODO'
     const REMOVE_TODO = 'REMOVE_TODO'
     const TOGGLE_TODO = 'TOGGLE_TODO'
     const ADD_GOAL = 'ADD_GOAL'
     const REMOVE_GOAL = 'REMOVE_GOAL'
+    const RECEIVE_DATA = 'RECEIVE_DATA'
 
     function addTodoAction (todo) {
       return {
@@ -55,6 +57,14 @@
         type: REMOVE_GOAL,
         id,
       }
+    }
+
+    function receiveDataAction(todos, goals) {
+        return {
+          type: RECEIVE_DATA,
+          todos,
+          goals
+        }
     }
 
     const checker = (store) => (next) => (action) => {
@@ -95,6 +105,8 @@
           return state.map((todo) => todo.id !== action.id ? todo :
             Object.assign({}, todo, {complete: !todo.complete})
           )
+        case RECEIVE_DATA:
+          return action.todos;
         default :
           return state
       }
@@ -106,6 +118,8 @@
           return state.concat([action.goal])
         case REMOVE_GOAL :
           return state.filter((goal) => goal.id !== action.id)
+        case RECEIVE_DATA:
+          return action.goals;
         default :
           return state
       }
@@ -115,13 +129,6 @@
       todos,
       goals,
     }), Redux.applyMiddleware(checker, logger))
-
-    store.subscribe(() => {
-      const { goals, todos } = store.getState()
-    })
-
-    // DOM code
-
   </script>
 
   <script type="text/babel">
@@ -131,9 +138,9 @@
           {props.items.map((item) => (
             <li key={item.id}>
               <span
-                onClick={() => props.toggle && props.toggle(item)}
+                onClick={() => props.toggle && props.toggle(item.id)}
                 style={{textDecoration: item.complete ? 'line-through' : 'none'}}>
-                {item.name}
+                  {item.name}
               </span>
               <button onClick={() => props.remove(item)}>X</button>
             </li>
@@ -144,44 +151,37 @@
 
     class Todos extends React.Component {
       addItem = (e) => {
-        e.preventDefault();
-        // grab the input
-        const name = this.input.value;
-        this.input = '';
+        e.preventDefault()
+        const name = this.input.value
+        this.input.value = ''
+
         this.props.store.dispatch(addTodoAction({
           id: generateId(),
           name,
           complete: false,
-        }));
+        }))
       }
       removeItem = (todo) => {
-        console.log('remove item called for id: ', todo.id);
-        this.props.store.dispatch(removeTodoAction(todo.id));
+        this.props.store.dispatch(removeTodoAction(todo.id))
       }
-
-      toggleItem = (todo) => {
-        console.log('toggle item called for id: ', todo.name);
-        this.props.store.dispatch(toggleTodoAction(todo.id));
+      toggleItem = (id) => {
+        this.props.store.dispatch(toggleTodoAction(id))
       }
       render() {
         return (
           <div>
-            <h1>TodoList</h1>
+            <h1>Todo List</h1>
             <input
               type='text'
               placeholder='Add Todo'
-              // this will allow us to grab the property
-              ref={(input) => this.input = input }
+              ref={(input) => this.input = input}
             />
-            <button
-              onClick={this.addItem}
-              >Add To do</button>
+            <button onClick={this.addItem}>Add Todo</button>
 
             <List
+              toggle={this.toggleItem}
               items={this.props.todos}
-              from='todos'
-              remove = {this.removeItem}
-              toggle = {this.toggleItem}
+              remove={this.removeItem}
             />
           </div>
         )
@@ -190,22 +190,19 @@
 
     class Goals extends React.Component {
       addItem = (e) => {
-        e.preventDefault();
-        // grab the input
-        const name = this.input.value;
-        this.input = '';
+        e.preventDefault()
+        const name = this.input.value
+        this.input.value = ''
+
         this.props.store.dispatch(addGoalAction({
           id: generateId(),
           name,
-          complete: false,
-        }));
+        }))
       }
 
       removeItem = (goal) => {
-        console.log('remove item called for id: ', goal.name);
-        this.props.store.dispatch(removeGoalAction(goal.id));
+        this.props.store.dispatch(removeGoalAction(goal.id))
       }
-
       render() {
         return (
           <div>
@@ -213,17 +210,13 @@
             <input
               type='text'
               placeholder='Add Goal'
-              // this will allow us to grab the property
-              ref={(input) => this.input = input }
+              ref={(input) => this.input = input}
             />
-            <button
-              onClick={this.addItem}
-              >Add To do</button>
+            <button onClick={this.addItem}>Add Goal</button>
 
             <List
               items={this.props.goals}
-              from='goals'
-              remove = {this.removeItem}
+              remove={this.removeItem}
             />
           </div>
         )
@@ -231,25 +224,33 @@
     }
 
     class App extends React.Component {
-      componentDidMount() {
-        const { store } = this.props;
+      componentDidMount () {
+        const { store } = this.props
 
-        store.subscribe( () => this.forceUpdate())
+        Promise.all([
+          API.fetchTodos(),
+          API.fetchGoals(),
+        ]).then(([ todos, goals ]) => {
+          store.dispatch(receiveDataAction(todos, goals))
+        })
+
+        store.subscribe(() => this.forceUpdate())
       }
       render() {
-        const { store } = this.props;
-        const { todos, goals } = store.getState();
+        const { store } = this.props
+        const { todos, goals } = store.getState()
+
         return (
           <div>
             <Todos todos={todos} store={store} />
-            <Goals goals={goals} store={store} />
+            <Goals goals={goals} store={store}/>
           </div>
         )
       }
     }
 
     ReactDOM.render(
-      <App store = {store}/>,
+      <App store={store} />,
       document.getElementById('app')
     )
   </script>

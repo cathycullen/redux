@@ -162,7 +162,7 @@
               placeholder='Add Todo'
               ref={(input) => this.input = input }
             />
-            <buttononClick={this.addItem}>Add To do</button>
+            <button onClick={this.addItem}>Add To do</button>
 
             <List
               toggle={this.toggleItem}
@@ -218,7 +218,7 @@
       render() {
         const { store } = this.props;
         const { todos, goals } = store.getState();
-        
+
         return (
           <div>
             <Todos todos={todos} store={store} />
