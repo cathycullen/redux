@@ -59,6 +59,14 @@
       }
     }
 
+    function receiveDataAction(todos, goals) {
+        return {
+          type: RECEIVE_DATA,
+          todos,
+          goals
+        }
+    }
+
     function handleDeleteTodoAction(todo) {
       // now we are returning a function, and this function is passsed dispatch
       return((dispatch) => {
@@ -71,12 +79,63 @@
       })
     }
 
-    function receiveDataAction(todos, goals) {
-        return {
-          type: RECEIVE_DATA,
-          todos,
-          goals
-        }
+    function handleDeleteGoal(goal) {
+      return((dispatch) => {
+        dispatch(removeGoalAction(goal.id));
+        return API.deleteGoal(goal.id)
+          .catch(() => {
+            dispatch(addGoalAction(goal))
+            alert('An error ocurred. try again.');
+          })
+      })
+    }
+
+    function handleAddGoal(name, cb) {
+      return((dispatch) => {
+        return API.saveGoal(name)
+          .then((goal) => {
+            dispatch(addGoalAction(goal));
+            cb();
+          })
+          .catch(() => {
+            alert('An error ocurred.  try again');
+          })
+      })
+    }
+
+    function handleAddTodo(name, cb) {
+      return((dispatch) => {
+        return(API.saveTodo(name))
+          .then((todo) => {
+            dispatch(addTodoAction(todo));
+            cb();
+          })
+          .catch(() => alert('There was an error. try again.'));
+      })
+    }
+
+    function handleToggleTodo(id) {
+      return((dispatch) => {
+        return(API.saveTodoToggle(id))
+          .then((todo) => {
+            dispatch(toggleTodoAction(id));
+          })
+          .catch(() => {
+            dispatch(toggleTodoAction(id));
+            alert('There was an error. try again.');
+          })
+      })
+    }
+
+    function handleInitialData(todos, goals) {
+      return((dispatch, todos, goals) => {
+        Promise.all([
+          API.fetchTodos(),
+          API.fetchGoals(),
+        ]).then(([ todos, goals ]) => {
+          dispatch(receiveDataAction(todos, goals))
+        })
+      })
     }
 
     // Reducers
@@ -183,20 +242,12 @@
     class Todos extends React.Component {
       addItem = (e) => {
         e.preventDefault()
-        const name = this.input.value
-        this.input.value = ''
 
-        return API.saveTodo(name)
-          .then((todo) => {
-            this.props.store.dispatch(addTodoAction({
-              id: todo.id,
-              name,
-              complete: false,
-            }))
-          })
-          .catch(() => {
-            alert('An error ocurred.  try again');
-          })
+        this.props.store.dispatch(handleAddTodo(
+            this.input.value,
+            () => this.input.value = ''
+          ));
+        this.input.value = ''
       }
       removeItem = (todo) => {
         this.props.store.dispatch(handleDeleteTodoAction(todo))
@@ -234,30 +285,16 @@
     class Goals extends React.Component {
       addItem = (e) => {
         e.preventDefault()
-        const name = this.input.value
-        this.input.value = ''
 
-        return API.saveGoal(name)
-          .then((goal) => {
-            this.props.store.dispatch(addGoalAction({
-              id: goal.id,
-              name,
-            }))
-          })
-          .catch(() => {
-            alert('An error ocurred.  try again');
-          })
+        this.props.store.dispatch(handleAddGoal(
+          this.input.value,
+          () => this.input.value = ''
+        ));
       }
 
       removeItem = (goal) => {
-        this.props.store.dispatch(removeGoalAction(goal.id))
-        return API.deleteGoal(goal.id)
-          .catch(() => {
-            this.props.store.dispatch(addGoalAction(goal));
-            alert('An error ocurred.  try again');
-          })
-        }
-
+        this.props.store.dispatch(handleDeleteGoal(goal));
+      }
 
       render() {
         return (
@@ -283,13 +320,7 @@
       componentDidMount () {
         const { store } = this.props
 
-        Promise.all([
-          API.fetchTodos(),
-          API.fetchGoals(),
-        ]).then(([ todos, goals ]) => {
-          store.dispatch(receiveDataAction(todos, goals))
-        })
-
+        this.props.store.dispatch(handleInitialData());
         store.subscribe(() => this.forceUpdate())
       }
       render() {
